@@ -18,7 +18,7 @@ tables:
 - test1,uuid:S,prova:N
 apigateway:
 # method,url,lambda
-- POST,/test,rest
+- POST,test,rest
 ```
 
 ### Startup script
@@ -34,13 +34,16 @@ Used to configure localstack based on `config.yaml`: `python startup.py config.y
 - aws --endpoint-url=http://localhost:4574 lambda create-function --function-name=f1 --runtime=python3.5 --role=r1 --handler=lambda.handler --zip-file fileb://lambda.zip
 - aws --endpoint-url=http://localhost:4574 lambda delete-function --function-name=f1
 - aws lambda --endpoint-url=http://localhost:4574 invoke --function-name f1 result.log --payload '{"name":"test"}'
+- aws --endpoint-url=http://localhost:4574 lambda list-functions
 
 - aws sqs create-queue --endpoint-url=http://localhost:4576 --queue-name=test
+- aws sqs list-queues --endpoint-url=http://localhost:4576
 - aws sqs --endpoint-url=http://localhost:4576 --queue-url=test receive-message
 
 - aws dynamodb --endpoint-url=http://localhost:4569 create-table --table-name test --attribute-definitions AttributeName=uuid,AttributeType=S --key-schema AttributeName=uuid,KeyType=HASH --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5
 - aws dynamodb --endpoint-url=http://localhost:4569 get-item --table-name test --key file://key.json
 
+- aws apigateway get-resources --region us-west-2 --rest-api-id YOUR_API_ID --endpoint-url=http://localhost:4567
+
 ### Todo
 - apigateway configuration not tested
-- rest and job test

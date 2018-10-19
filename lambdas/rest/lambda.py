@@ -13,7 +13,7 @@ def handler(event, context):
         raise Exception('Validation error')
     client = boto3.client('sqs', endpoint_url='http://localhost:4576')
     response = client.send_message(
-        QueueUrl='123456789012/test',
+        QueueUrl='http://localhost:4576/queue/test',
         MessageBody=event['name']
     )
     print(response)

@@ -17,14 +17,13 @@ def start_localstack():
     subprocess.Popen([yaml_params['which_localstack'], 'start'],
              stdout=subprocess.PIPE,
              stderr=subprocess.STDOUT)
-    # wait before configure sources
-    time.sleep(10)
 
 def kill_running(name):
     for proc in psutil.process_iter():
         if proc.name() == name:
             print('kill already started localstack')
             os.kill(proc.pid, signal.SIGTERM)
+    time.sleep(10)
 
 def get_yaml(config_path):
     # read the config
@@ -45,7 +44,7 @@ def zipdir(path, ziph):
             ziph.write(os.path.join(root, file))
 
 def create_lambda(lambda_dir):
-    client = boto3.client('lambda', endpoint_url='http://localhost:4574')
+    client = boto3.client('lambda', endpoint_url='http://localhost:4574', region_name='us-west-2')
     # send lambda
     with open("lambda.zip", "rb") as f:
         bytes = f.read()
@@ -129,18 +128,17 @@ def configure_dynamo(tables):
 
 def configure_apigateway(apis):
     # https://ig.nore.me/2016/03/setting-up-lambda-and-a-gateway-through-the-cli/
+    # https://gist.github.com/crypticmind/c75db15fd774fe8f53282c3ccbe3d7ad
     print("configure apigateway")
-    client = boto3.client('apigateway', endpoint_url='http://localhost:4567')
+    client = boto3.client('apigateway', endpoint_url='http://localhost:4567', region_name='us-west-2')
     response_create_rest_api = client.create_rest_api(
         name='test',
     )
     response_get_rest_apis = client.get_rest_apis()
-    print response_get_rest_apis['items'][0], response_get_rest_apis['items'][0]['id']
     rest_api_id = response_get_rest_apis['items'][0]['id']
     response_get_resources = client.get_resources(
         restApiId=rest_api_id,
     )
-    print response_get_resources['items'][0]
     parent_resource_id = response_get_resources['items'][0]['id']
     for api in apis:
         info = api.split(',')
@@ -152,7 +150,6 @@ def configure_apigateway(apis):
         response_get_resources = client.get_resources(
             restApiId=rest_api_id,
         )
-        print response_get_resources['items'][0]
         resource_id = response_get_resources['items'][0]['id']
         client.put_method(
             restApiId=rest_api_id,
@@ -164,12 +161,9 @@ def configure_apigateway(apis):
             restApiId=rest_api_id,
             resourceId=resource_id,
             httpMethod=info[0],
-            type='AWS',
+            type='AWS_PROXY',
             integrationHttpMethod=info[0],
-            uri='arn:aws:lambda:us-east-1:000000000000:function:' + info[2],
-            requestTemplates={
-                'application/x-www-form-urlencoded': '{\"body\": $input.json(\"$\")}"}'
-            },
+            uri='arn:aws:apigateway:us-west-2:lambda:path/2015-03-31/functions/arn:aws:lambda:us-west-2:000000000000:function:' + info[2] + '/invocations',
         )
         client.put_method_response(
             restApiId=rest_api_id,
@@ -185,9 +179,10 @@ def configure_apigateway(apis):
             selectionPattern='.*',
         )
     client.create_deployment(
-        restApiId='string',
+        restApiId=rest_api_id,
         stageName='test'
     )
+    print('apigateway endpoint: ' + 'POST' + ' http://localhost:4567/restapis/' + rest_api_id + '/test/_user_request_/' + info[1])
     # see apis on http://localhost:4567/restapis/
 
 # read from argv where config is
@@ -196,14 +191,12 @@ services = yaml_params['services']
 
 kill_running('localstack')
 start_localstack()
+# wait before configure sources
+time.sleep(10)
 
 # lambdas
 if 'lambda' in services:
     configure_lambdas(yaml_params['lambdas_dir'])
-
-# api gateway
-if 'apigateway' in services:
-    configure_apigateway(yaml_params['apigateway'])
 
 # sqs
 if 'sqs' in services:
@@ -212,3 +205,7 @@ if 'sqs' in services:
 # dynamo
 if 'dynamo' in services:
     configure_dynamo(yaml_params['tables'])
+
+# api gateway
+if 'apigateway' in services:
+    configure_apigateway(yaml_params['apigateway'])

@@ -5,7 +5,7 @@ def handler(event, context):
     print 'test'
     sqs = boto3.client('sqs', endpoint_url='http://localhost:4576')
     sqs_response = sqs.receive_message(
-        QueueUrl='123456789012/test',
+        QueueUrl='http://localhost:4576/queue/test',
     )
     dynamo = boto3.client('dynamodb', endpoint_url='http://localhost:4569')
     print(sqs_response['Messages'][0])
